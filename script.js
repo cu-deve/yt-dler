@@ -1,7 +1,7 @@
 // ===============================
 // CONFIG
 // ===============================
-const BACKEND_URL = "https://YOUR-BACKEND.up.railway.app"; 
+const BACKEND_URL = "https://yt-dler-production.up.railway.app"; 
 // ⬆️ ប្ដូរទៅ backend YouTube របស់អ្នក
 
 // ===============================

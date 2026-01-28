@@ -9,6 +9,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ===============================
+// ROOT PATH (IMPORTANT)
+// ===============================
+app.get("/", (req, res) => {
+  res.send("🚀 YouTube Downloader API is running");
+});
+
+// ===============================
+// SETUP PATHS
+// ===============================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DOWNLOAD_DIR = path.join(__dirname, "downloads");
@@ -28,15 +38,12 @@ app.get("/download", (req, res) => {
   }
 
   const id = Date.now();
-  const outputTemplate = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
+  const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
-  let command = "";
-
-  if (format === "mp3") {
-    command = `yt-dlp -x --audio-format mp3 -o "${outputTemplate}" "${url}"`;
-  } else {
-    command = `yt-dlp -f "bv*+ba/b" -o "${outputTemplate}" "${url}"`;
-  }
+  const command =
+    format === "mp3"
+      ? `yt-dlp -x --audio-format mp3 -o "${output}" "${url}"`
+      : `yt-dlp -f "bv*+ba/b" -o "${output}" "${url}"`;
 
   exec(command, (error) => {
     if (error) {
@@ -44,8 +51,9 @@ app.get("/download", (req, res) => {
       return res.status(500).json({ error: "Download failed" });
     }
 
-    const files = fs.readdirSync(DOWNLOAD_DIR);
-    const file = files.find(f => f.startsWith(id.toString()));
+    const file = fs.readdirSync(DOWNLOAD_DIR).find(f =>
+      f.startsWith(id.toString())
+    );
 
     if (!file) {
       return res.status(500).json({ error: "File not found" });
@@ -53,16 +61,15 @@ app.get("/download", (req, res) => {
 
     const filePath = path.join(DOWNLOAD_DIR, file);
     res.download(filePath, () => {
-      fs.unlinkSync(filePath); // cleanup
+      fs.unlinkSync(filePath);
     });
   });
 });
 
+// ===============================
+// START SERVER (RAILWAY)
+// ===============================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
-});
-
-app.get("/", (req, res) => {
-  res.send("🚀 YouTube Downloader API is running");
 });
