@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // ===============================
-// ROOT PATH (IMPORTANT)
+// ROOT PATH (HEALTH CHECK)
 // ===============================
 app.get("/", (req, res) => {
   res.send("🚀 YouTube Downloader API is running");
@@ -31,37 +31,72 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
 // DOWNLOAD ENDPOINT
 // ===============================
 app.get("/download", (req, res) => {
-  const { url, format } = req.query;
+  let { url, format } = req.query;
 
   if (!url) {
     return res.status(400).json({ error: "Missing URL" });
   }
 
-  const id = Date.now();
-  const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
+  // Clean YouTube URL (remove ?si= etc.)
+  url = url.split("?")[0];
 
-  const command =
-    format === "mp3"
-      ? `yt-dlp -x --audio-format mp3 -o "${output}" "${url}"`
-      : `yt-dlp -f "bv*+ba/b" -o "${output}" "${url}"`;
+  // Default format
+  format = format === "mp3" ? "mp3" : "mp4";
+
+  const id = Date.now();
+  const outputTemplate = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
+
+  let command = "";
+
+  // ===============================
+  // FORCE MP3
+  // ===============================
+  if (format === "mp3") {
+    command = `
+      yt-dlp
+      -x
+      --audio-format mp3
+      --audio-quality 0
+      -o "${outputTemplate}"
+      "${url}"
+    `;
+  }
+
+  // ===============================
+  // FORCE MP4 (NO WEBM)
+  // ===============================
+  else {
+    command = `
+      yt-dlp
+      -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
+      --merge-output-format mp4
+      -o "${outputTemplate}"
+      "${url}"
+    `;
+  }
 
   exec(command, (error) => {
     if (error) {
-      console.error(error);
+      console.error("yt-dlp error:", error);
       return res.status(500).json({ error: "Download failed" });
     }
 
-    const file = fs.readdirSync(DOWNLOAD_DIR).find(f =>
-      f.startsWith(id.toString())
-    );
+    const files = fs.readdirSync(DOWNLOAD_DIR);
+    const file = files.find(f => f.startsWith(id.toString()));
 
     if (!file) {
       return res.status(500).json({ error: "File not found" });
     }
 
     const filePath = path.join(DOWNLOAD_DIR, file);
+
+    // Send file & cleanup
     res.download(filePath, () => {
-      fs.unlinkSync(filePath);
+      try {
+        fs.unlinkSync(filePath);
+      } catch (err) {
+        console.error("Cleanup error:", err);
+      }
     });
   });
 });
