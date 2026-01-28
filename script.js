@@ -1,8 +1,7 @@
 // ===============================
 // CONFIG
 // ===============================
-const BACKEND_URL = "https://yt-dler-production.up.railway.app"; 
-// ⬆️ ប្ដូរទៅ backend YouTube របស់អ្នក
+const BACKEND_URL = "https://yt-dler-production.up.railway.app";
 
 // ===============================
 // ELEMENTS
@@ -69,7 +68,7 @@ pasteBtn.addEventListener("click", async () => {
       updateInputButtons();
     }
   } catch {
-    alert("Failed to read clipboard. Please paste manually.");
+    alert("Clipboard access denied. Please paste manually.");
   }
 });
 
@@ -77,18 +76,24 @@ pasteBtn.addEventListener("click", async () => {
 // HELPER: YOUTUBE URL VALIDATION
 // ===============================
 function isValidYouTubeUrl(url) {
-  return (
-    url.includes("youtube.com/watch") ||
-    url.includes("youtu.be/")
-  );
+  try {
+    const u = new URL(url);
+    return (
+      u.hostname.includes("youtube.com") ||
+      u.hostname.includes("youtu.be")
+    );
+  } catch {
+    return false;
+  }
 }
 
 // ===============================
 // DOWNLOAD HANDLER
 // ===============================
 downloadBtn.addEventListener("click", () => {
-  const videoUrl = urlInput.value.trim();
-  const format = formatSelect.value;
+  const rawUrl = urlInput.value.trim();
+  const videoUrl = rawUrl.split("?")[0]; // clean URL
+  const format = formatSelect?.value || "mp4";
 
   // ---- validation ----
   if (!videoUrl) {
@@ -110,19 +115,16 @@ downloadBtn.addEventListener("click", () => {
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  try {
-    if (isIOS) {
-      window.open(downloadUrl, "_blank");
-    } else {
-      window.location.href = downloadUrl;
-    }
-  } catch (err) {
-    alert("Failed to initiate download. Please try again.");
+  // ---- trigger download ----
+  if (isIOS) {
+    window.open(downloadUrl, "_blank");
+  } else {
+    window.location.href = downloadUrl;
   }
 
-  // ---- reset button after short delay ----
+  // ---- reset button (safe UX) ----
   setTimeout(() => {
     downloadBtn.disabled = false;
     downloadBtn.textContent = "Download";
-  }, 2500);
+  }, 2000);
 });
