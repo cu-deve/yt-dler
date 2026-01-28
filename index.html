@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CU-Dec - Youtube Downloader</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="../icon/logo-tittle.png">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo-section">
+        <img src="./img/logo.png" alt="CU-Dev Logo" class="logo">
+        <span class="logo-text">CU-Dev</span>
+      </div>
+      <nav class="desktop-nav">
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <button class="hamburger" id="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a href="#home" class="sidebar-link">Home</a>
+      <a href="#about" class="sidebar-link">About</a>
+      <a href="#contact" class="sidebar-link">Contact</a>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+      <div class="hero-card">
+        <h1 class="hero-title">Youtube Downloader</h1>
+        <p class="hero-subtitle">Download YouTube videos as MP4 or MP3</p>
+ <div class="input-group">
+  <div class="input-wrapper">
+    <input
+      type="url"
+      id="urlInput"
+      class="input-field"
+      placeholder="Paste YouTube video URL here"
+    />
+  </div>
+
+  <div class="action-row">
+    <select id="formatSelect" class="input-field">
+      <option value="mp4">MP4</option>
+      <option value="mp3">MP3</option>
+    </select>
+
+    <button class="download-btn">Download</button>
+  </div>
+</div>
+
+
+    </section>
+    <section class="info-wrapper">
+  <section class="about" id="about">
+    <div class="about-content">
+      <h2>About CU-Dev</h2>
+      <p>Here is a website and fast TikTok video downloader designed for mobile and desktop users.</p>
+      <p>We do not host any videos. All rights belong to TikTok and the content creators.</p>
+    </div>
+  </section>
+
+  <section class="contact" id="contact">
+    <div class="contact-content">
+      <h2>Contact</h2>
+      <p><strong>Email:</strong> oudomchhon@icloud.com</p>
+      <p>For copyright or DMCA requests, please include the video URL and proof of ownership.</p>
+    </div>
+  </section>
+</section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2026 CU-Dev. All videos are the property of their creators. For personal use only.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
