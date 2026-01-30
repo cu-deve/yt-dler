@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { exec } from "child_process";
+import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,15 +10,12 @@ app.use(cors());
 app.use(express.json());
 
 // ===============================
-// HEALTH CHECK
+// BASIC
 // ===============================
 app.get("/", (req, res) => {
-  res.status(200).send("🚀 YouTube Downloader API is running");
+  res.send("🚀 Downloader API running");
 });
 
-// ===============================
-// PATH SETUP
-// ===============================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -30,48 +27,62 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
 }
 
 // ===============================
-// DOWNLOAD ENDPOINT
+// DOWNLOAD
 // ===============================
 app.get("/download", (req, res) => {
-  let { url, format } = req.query;
+  const { url, format } = req.query;
 
   if (!url) {
     return res.status(400).json({ error: "Missing URL" });
   }
 
-  url = url.split("?")[0];
-  format = format === "mp3" ? "mp3" : "mp4";
+  try {
+    new URL(url);
+  } catch {
+    return res.status(400).json({ error: "Invalid URL" });
+  }
 
   const id = Date.now();
   const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
+  const isMp3 = format === "mp3";
 
-  const cookiesFlag = fs.existsSync(COOKIES_PATH)
-    ? `--cookies "${COOKIES_PATH}"`
-    : "";
+  const args = [];
 
-  let command = "";
-
-  if (format === "mp3") {
-    command =
-      `yt-dlp ${cookiesFlag} --js-runtime node ` +
-      `-x --audio-format mp3 --audio-quality 0 ` +
-      `-o "${output}" "${url}"`;
-  } else {
-    command =
-      `yt-dlp ${cookiesFlag} --js-runtime node ` +
-      `-f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" ` +
-      `--merge-output-format mp4 ` +
-      `-o "${output}" "${url}"`;
+  if (fs.existsSync(COOKIES_PATH)) {
+    args.push("--cookies", COOKIES_PATH);
   }
 
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      console.error("yt-dlp ERROR:\n", stderr || error.message);
+  args.push("--no-playlist", "--js-runtime", "node");
 
+  if (isMp3) {
+    args.push(
+      "-x",
+      "--audio-format", "mp3",
+      "--audio-quality", "0"
+    );
+  } else {
+    args.push(
+      "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+      "--merge-output-format", "mp4"
+    );
+  }
+
+  args.push("-o", output, url);
+
+  const yt = spawn("yt-dlp", args);
+
+  let errorLog = "";
+
+  yt.stderr.on("data", d => {
+    errorLog += d.toString();
+  });
+
+  yt.on("close", code => {
+    if (code !== 0) {
+      console.error(errorLog);
       return res.status(500).json({
         error: "Download failed",
-        detail: stderr || error.message,
-        hint: "YouTube blocks cloud IPs. VPS + cookies recommended."
+        detail: errorLog
       });
     }
 
@@ -83,19 +94,14 @@ app.get("/download", (req, res) => {
     }
 
     const filePath = path.join(DOWNLOAD_DIR, file);
-
     res.download(filePath, () => {
-      try {
-        fs.unlinkSync(filePath);
-      } catch {}
+      fs.unlinkSync(filePath);
     });
   });
 });
 
 // ===============================
-// START SERVER
-// ===============================
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port", PORT);
 });
