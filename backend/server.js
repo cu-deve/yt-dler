@@ -21,10 +21,12 @@ app.get("/", (req, res) => {
 // ===============================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const DOWNLOAD_DIR = path.join(__dirname, "downloads");
+const COOKIES_PATH = path.join(__dirname, "cookies.txt");
 
 if (!fs.existsSync(DOWNLOAD_DIR)) {
-  fs.mkdirSync(DOWNLOAD_DIR);
+  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
 
 // ===============================
@@ -43,16 +45,20 @@ app.get("/download", (req, res) => {
   const id = Date.now();
   const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
+  const cookiesFlag = fs.existsSync(COOKIES_PATH)
+    ? `--cookies "${COOKIES_PATH}"`
+    : "";
+
   let command = "";
 
   if (format === "mp3") {
     command =
-      `yt-dlp --js-runtime node ` +
+      `yt-dlp ${cookiesFlag} --js-runtime node ` +
       `-x --audio-format mp3 --audio-quality 0 ` +
       `-o "${output}" "${url}"`;
   } else {
     command =
-      `yt-dlp --js-runtime node ` +
+      `yt-dlp ${cookiesFlag} --js-runtime node ` +
       `-f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" ` +
       `--merge-output-format mp4 ` +
       `-o "${output}" "${url}"`;
@@ -62,11 +68,10 @@ app.get("/download", (req, res) => {
     if (error) {
       console.error("yt-dlp ERROR:\n", stderr || error.message);
 
-      // IMPORTANT: return error, do NOT crash server
-      return res.status(403).json({
-        error: "YouTube blocked this request",
+      return res.status(500).json({
+        error: "Download failed",
         detail: stderr || error.message,
-        hint: "YouTube blocks cloud IPs. Cookies or VPS required."
+        hint: "YouTube blocks cloud IPs. VPS + cookies recommended."
       });
     }
 
@@ -80,7 +85,9 @@ app.get("/download", (req, res) => {
     const filePath = path.join(DOWNLOAD_DIR, file);
 
     res.download(filePath, () => {
-      try { fs.unlinkSync(filePath); } catch {}
+      try {
+        fs.unlinkSync(filePath);
+      } catch {}
     });
   });
 });
