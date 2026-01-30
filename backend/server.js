@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // ===============================
-// ROOT PATH (HEALTH CHECK)
+// HEALTH CHECK
 // ===============================
 app.get("/", (req, res) => {
   res.status(200).send("🚀 YouTube Downloader API is running");
@@ -37,12 +37,11 @@ app.get("/download", (req, res) => {
     return res.status(400).json({ error: "Missing URL" });
   }
 
-  // Clean URL
   url = url.split("?")[0];
   format = format === "mp3" ? "mp3" : "mp4";
 
   const id = Date.now();
-  const outputTemplate = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
+  const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
   let command = "";
 
@@ -50,28 +49,28 @@ app.get("/download", (req, res) => {
     command =
       `yt-dlp --js-runtime node ` +
       `-x --audio-format mp3 --audio-quality 0 ` +
-      `-o "${outputTemplate}" "${url}"`;
+      `-o "${output}" "${url}"`;
   } else {
     command =
       `yt-dlp --js-runtime node ` +
       `-f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" ` +
       `--merge-output-format mp4 ` +
-      `-o "${outputTemplate}" "${url}"`;
+      `-o "${output}" "${url}"`;
   }
 
   exec(command, (error, stdout, stderr) => {
     if (error) {
-      console.error("yt-dlp ERROR:");
-      console.error(stderr || error.message);
+      console.error("yt-dlp ERROR:\n", stderr || error.message);
 
-      return res.status(500).json({
-        error: "Download failed",
-        detail: stderr || error.message
+      // IMPORTANT: return error, do NOT crash server
+      return res.status(403).json({
+        error: "YouTube blocked this request",
+        detail: stderr || error.message,
+        hint: "YouTube blocks cloud IPs. Cookies or VPS required."
       });
     }
 
-    const file = fs
-      .readdirSync(DOWNLOAD_DIR)
+    const file = fs.readdirSync(DOWNLOAD_DIR)
       .find(f => f.startsWith(id.toString()));
 
     if (!file) {
@@ -81,9 +80,7 @@ app.get("/download", (req, res) => {
     const filePath = path.join(DOWNLOAD_DIR, file);
 
     res.download(filePath, () => {
-      try {
-        fs.unlinkSync(filePath);
-      } catch {}
+      try { fs.unlinkSync(filePath); } catch {}
     });
   });
 });
