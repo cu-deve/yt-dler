@@ -46,28 +46,29 @@ app.get("/download", (req, res) => {
   const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
   const isMp3 = format === "mp3";
 
-  const args = [];
+ const args = [];
 
-  if (fs.existsSync(COOKIES_PATH)) {
-    args.push("--cookies", COOKIES_PATH);
-  }
+if (fs.existsSync(COOKIES_PATH)) {
+  args.push("--cookies", COOKIES_PATH);
+}
 
-  args.push("--no-playlist", "--js-runtime", "node");
+args.push("--no-playlist");
 
-  if (isMp3) {
-    args.push(
-      "-x",
-      "--audio-format", "mp3",
-      "--audio-quality", "0"
-    );
-  } else {
-    args.push(
-      "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
-      "--merge-output-format", "mp4"
-    );
-  }
+if (isMp3) {
+  args.push(
+    "-x",
+    "--audio-format", "mp3",
+    "--audio-quality", "0"
+  );
+} else {
+  args.push(
+    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+    "--merge-output-format", "mp4"
+  );
+}
 
-  args.push("-o", output, url);
+args.push("-o", output, url);
+
 
   const yt = spawn("yt-dlp", args);
 
