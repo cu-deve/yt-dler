@@ -52,14 +52,7 @@ app.get("/download", (req, res) => {
   // FORCE MP3
   // ===============================
   if (format === "mp3") {
-    command = `
-      yt-dlp
-      -x
-      --audio-format mp3
-      --audio-quality 0
-      -o "${outputTemplate}"
-      "${url}"
-    `;
+    command = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputTemplate}" "${url}"`;
   }
 
   // ===============================
