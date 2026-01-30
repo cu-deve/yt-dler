@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 });
 
 // ===============================
-// SETUP PATHS
+// PATH SETUP
 // ===============================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +28,7 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
 }
 
 // ===============================
-// DOWNLOAD ENDPOINT (FIXED)
+// DOWNLOAD ENDPOINT
 // ===============================
 app.get("/download", (req, res) => {
   let { url, format } = req.query;
@@ -37,10 +37,8 @@ app.get("/download", (req, res) => {
     return res.status(400).json({ error: "Missing URL" });
   }
 
-  // clean URL (remove ?si= etc.)
+  // Clean URL
   url = url.split("?")[0];
-
-  // default format
   format = format === "mp3" ? "mp3" : "mp4";
 
   const id = Date.now();
@@ -48,22 +46,32 @@ app.get("/download", (req, res) => {
 
   let command = "";
 
-  // ---- FORCE MP3 ----
   if (format === "mp3") {
-    command = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputTemplate}" "${url}"`;
-  }
-  // ---- FORCE MP4 (NO WEBM) ----
-  else {
-    command = `yt-dlp -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" --merge-output-format mp4 -o "${outputTemplate}" "${url}"`;
+    command =
+      `yt-dlp --js-runtime node ` +
+      `-x --audio-format mp3 --audio-quality 0 ` +
+      `-o "${outputTemplate}" "${url}"`;
+  } else {
+    command =
+      `yt-dlp --js-runtime node ` +
+      `-f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" ` +
+      `--merge-output-format mp4 ` +
+      `-o "${outputTemplate}" "${url}"`;
   }
 
-  exec(command, (error) => {
+  exec(command, (error, stdout, stderr) => {
     if (error) {
-      console.error("yt-dlp error:", error);
-      return res.status(500).json({ error: "Download failed" });
+      console.error("yt-dlp ERROR:");
+      console.error(stderr || error.message);
+
+      return res.status(500).json({
+        error: "Download failed",
+        detail: stderr || error.message
+      });
     }
 
-    const file = fs.readdirSync(DOWNLOAD_DIR)
+    const file = fs
+      .readdirSync(DOWNLOAD_DIR)
       .find(f => f.startsWith(id.toString()));
 
     if (!file) {
@@ -74,16 +82,14 @@ app.get("/download", (req, res) => {
 
     res.download(filePath, () => {
       try {
-        fs.unlinkSync(filePath); // cleanup
-      } catch (err) {
-        console.error("Cleanup error:", err);
-      }
+        fs.unlinkSync(filePath);
+      } catch {}
     });
   });
 });
 
 // ===============================
-// START SERVER (RAILWAY)
+// START SERVER
 // ===============================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
