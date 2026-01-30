@@ -62,7 +62,7 @@ if (isMp3) {
   );
 } else {
   args.push(
-    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+    "-f", "bv*+ba/b",
     "--merge-output-format", "mp4"
   );
 }
@@ -78,27 +78,33 @@ args.push("-o", output, url);
     errorLog += d.toString();
   });
 
-  yt.on("close", code => {
-    if (code !== 0) {
-      console.error(errorLog);
+yt.on("close", code => {
+  if (code !== 0) {
+    console.error("yt-dlp failed:\n", errorLog);
+
+    // ❗ IMPORTANT: respond, DO NOT crash
+    if (!res.headersSent) {
       return res.status(500).json({
         error: "Download failed",
-        detail: errorLog
+        reason: "YouTube blocked server or format unavailable",
+        detail: errorLog.slice(0, 2000)
       });
     }
+    return;
+  }
 
-    const file = fs.readdirSync(DOWNLOAD_DIR)
-      .find(f => f.startsWith(id.toString()));
+  const file = fs.readdirSync(DOWNLOAD_DIR)
+    .find(f => f.startsWith(id.toString()));
 
-    if (!file) {
-      return res.status(500).json({ error: "File not found" });
-    }
+  if (!file) {
+    return res.status(500).json({ error: "File not found" });
+  }
 
-    const filePath = path.join(DOWNLOAD_DIR, file);
-    res.download(filePath, () => {
-      fs.unlinkSync(filePath);
-    });
+  res.download(path.join(DOWNLOAD_DIR, file), () => {
+    fs.unlinkSync(path.join(DOWNLOAD_DIR, file));
   });
+});
+
 });
 
 // ===============================
