@@ -13,7 +13,7 @@ app.use(express.json());
 // ROOT PATH (HEALTH CHECK)
 // ===============================
 app.get("/", (req, res) => {
-  res.send("🚀 YouTube Downloader API is running");
+  res.status(200).send("🚀 YouTube Downloader API is running");
 });
 
 // ===============================
@@ -28,7 +28,7 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
 }
 
 // ===============================
-// DOWNLOAD ENDPOINT
+// DOWNLOAD ENDPOINT (FIXED)
 // ===============================
 app.get("/download", (req, res) => {
   let { url, format } = req.query;
@@ -37,10 +37,10 @@ app.get("/download", (req, res) => {
     return res.status(400).json({ error: "Missing URL" });
   }
 
-  // Clean YouTube URL (remove ?si= etc.)
+  // clean URL (remove ?si= etc.)
   url = url.split("?")[0];
 
-  // Default format
+  // default format
   format = format === "mp3" ? "mp3" : "mp4";
 
   const id = Date.now();
@@ -48,24 +48,13 @@ app.get("/download", (req, res) => {
 
   let command = "";
 
-  // ===============================
-  // FORCE MP3
-  // ===============================
+  // ---- FORCE MP3 ----
   if (format === "mp3") {
     command = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputTemplate}" "${url}"`;
   }
-
-  // ===============================
-  // FORCE MP4 (NO WEBM)
-  // ===============================
+  // ---- FORCE MP4 (NO WEBM) ----
   else {
-    command = `
-      yt-dlp
-      -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
-      --merge-output-format mp4
-      -o "${outputTemplate}"
-      "${url}"
-    `;
+    command = `yt-dlp -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" --merge-output-format mp4 -o "${outputTemplate}" "${url}"`;
   }
 
   exec(command, (error) => {
@@ -74,8 +63,8 @@ app.get("/download", (req, res) => {
       return res.status(500).json({ error: "Download failed" });
     }
 
-    const files = fs.readdirSync(DOWNLOAD_DIR);
-    const file = files.find(f => f.startsWith(id.toString()));
+    const file = fs.readdirSync(DOWNLOAD_DIR)
+      .find(f => f.startsWith(id.toString()));
 
     if (!file) {
       return res.status(500).json({ error: "File not found" });
@@ -83,10 +72,9 @@ app.get("/download", (req, res) => {
 
     const filePath = path.join(DOWNLOAD_DIR, file);
 
-    // Send file & cleanup
     res.download(filePath, () => {
       try {
-        fs.unlinkSync(filePath);
+        fs.unlinkSync(filePath); // cleanup
       } catch (err) {
         console.error("Cleanup error:", err);
       }
@@ -98,6 +86,6 @@ app.get("/download", (req, res) => {
 // START SERVER (RAILWAY)
 // ===============================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port", PORT);
 });
