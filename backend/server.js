@@ -8,12 +8,9 @@ import { fileURLToPath } from "url";
 const app = express();
 app.use(cors());
 
-
 // ===============================
 // PATH SETUP
 // ===============================
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -32,11 +29,14 @@ app.get("/", (req, res) => {
 });
 
 // ===============================
-// DOWNLOAD (MP4 + AUDIO ONLY)
+// DOWNLOAD (MP4 + AUDIO, MAX 1080p)
 // ===============================
 app.get("/download", (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: "Missing URL" });
+  const { url, quality } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: "Missing URL" });
+  }
 
   try {
     new URL(url);
@@ -44,25 +44,30 @@ app.get("/download", (req, res) => {
     return res.status(400).json({ error: "Invalid URL" });
   }
 
+  // 🔒 DEFAULT = 1080p
+  // (prepare for future quality selector)
+  const maxHeight = quality === "720" ? 720 : 1080;
+
   const id = Date.now();
   const outputTemplate = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
   const args = [
     "--no-playlist",
 
-    // ⭐ choose best video + M4A (AAC) audio only
-    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+    // ⭐ LIMIT MAX QUALITY (AAC audio, MP4 video)
+    "-f",
+    `bv*[ext=mp4][height<=${maxHeight}]+ba[ext=m4a]/bv*[height<=${maxHeight}]+ba/b`,
 
-    // merge to mp4
-    "--merge-output-format", "mp4",
+    "--merge-output-format",
+    "mp4",
 
-    "-o", outputTemplate,
+    "-o",
+    outputTemplate,
+
     url
   ];
 
-
-
-
+  // Optional cookies (for blocked videos)
   if (fs.existsSync(COOKIES_PATH)) {
     args.push("--cookies", COOKIES_PATH);
   }
@@ -70,36 +75,44 @@ app.get("/download", (req, res) => {
   const yt = spawn("yt-dlp", args);
   let stderr = "";
 
-  yt.stderr.on("data", d => stderr += d.toString());
+  yt.stderr.on("data", (d) => {
+    stderr += d.toString();
+  });
 
-  yt.on("close", code => {
+  yt.on("close", (code) => {
     if (code !== 0) {
       return res.status(500).json({
         error: "Download failed",
-        detail: stderr.slice(0, 2000)
+        detail: stderr.slice(0, 2000),
       });
     }
 
     const files = fs.readdirSync(DOWNLOAD_DIR);
     const mp4File = files.find(
-      f => f.startsWith(id.toString()) && f.endsWith(".mp4")
+      (f) => f.startsWith(id.toString()) && f.endsWith(".mp4")
     );
 
     if (!mp4File) {
       return res.status(500).json({
         error: "MP4 not created",
-        files
+        files,
       });
     }
 
     const filePath = path.join(DOWNLOAD_DIR, mp4File);
-    res.download(filePath, () => fs.unlinkSync(filePath));
+
+    // Send file then delete
+    res.download(filePath, () => {
+      fs.unlink(filePath, () => { });
+    });
   });
 });
 
-
 // ===============================
-const PORT = 8080;
+// SERVER
+// ===============================
+const PORT = process.env.PORT || 8080;
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port", PORT);
 });

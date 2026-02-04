@@ -86,6 +86,20 @@ function isValidYouTubeUrl(url) {
   }
 }
 
+
+const qualitySelect = document.getElementById("qualitySelect");
+
+downloadBtn.addEventListener("click", () => {
+  const videoUrl = urlInput.value.trim();
+  const quality = qualitySelect?.value || "1080";
+
+  const downloadUrl =
+    `${BACKEND_URL}/download?url=${encodeURIComponent(videoUrl)}&quality=${quality}`;
+
+  window.location.href = downloadUrl;
+});
+
+
 // ===============================
 // DOWNLOAD HANDLER
 // ===============================
