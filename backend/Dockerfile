@@ -1,10 +1,19 @@
 FROM node:20-slim
 
+# Install ffmpeg + curl
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yt-dlp binary (NO pip ❌)
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp \
+    && chmod +x /usr/local/bin/yt-dlp
+
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y yt-dlp ffmpeg python3 && \
-    apt-get clean
 
 COPY package.json ./
 RUN npm install

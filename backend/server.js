@@ -7,14 +7,12 @@ import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+
 
 // ===============================
-// BASIC
+// PATH SETUP
 // ===============================
-app.get("/", (req, res) => {
-  res.send("🚀 Downloader API running");
-});
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,14 +25,18 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
 }
 
 // ===============================
-// DOWNLOAD
+// BASIC CHECK
+// ===============================
+app.get("/", (req, res) => {
+  res.send("🎬 Video Downloader API running");
+});
+
+// ===============================
+// DOWNLOAD (MP4 + AUDIO ONLY)
 // ===============================
 app.get("/download", (req, res) => {
-  const { url, format } = req.query;
-
-  if (!url) {
-    return res.status(400).json({ error: "Missing URL" });
-  }
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: "Missing URL" });
 
   try {
     new URL(url);
@@ -43,72 +45,61 @@ app.get("/download", (req, res) => {
   }
 
   const id = Date.now();
-  const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
-  const isMp3 = format === "mp3";
+  const outputTemplate = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
- const args = [];
+  const args = [
+    "--no-playlist",
 
-if (fs.existsSync(COOKIES_PATH)) {
-  args.push("--cookies", COOKIES_PATH);
-}
+    // ⭐ choose best video + M4A (AAC) audio only
+    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
 
-args.push("--no-playlist");
+    // merge to mp4
+    "--merge-output-format", "mp4",
 
-if (isMp3) {
-  args.push(
-    "-x",
-    "--audio-format", "mp3",
-    "--audio-quality", "0"
-  );
-} else {
-  args.push(
-    "-f", "bv*+ba/b",
-    "--merge-output-format", "mp4"
-  );
-}
+    "-o", outputTemplate,
+    url
+  ];
 
-args.push("-o", output, url);
 
+
+
+  if (fs.existsSync(COOKIES_PATH)) {
+    args.push("--cookies", COOKIES_PATH);
+  }
 
   const yt = spawn("yt-dlp", args);
+  let stderr = "";
 
-  let errorLog = "";
+  yt.stderr.on("data", d => stderr += d.toString());
 
-  yt.stderr.on("data", d => {
-    errorLog += d.toString();
-  });
-
-yt.on("close", code => {
-  if (code !== 0) {
-    console.error("yt-dlp failed:\n", errorLog);
-
-    // ❗ IMPORTANT: respond, DO NOT crash
-    if (!res.headersSent) {
+  yt.on("close", code => {
+    if (code !== 0) {
       return res.status(500).json({
         error: "Download failed",
-        reason: "YouTube blocked server or format unavailable",
-        detail: errorLog.slice(0, 2000)
+        detail: stderr.slice(0, 2000)
       });
     }
-    return;
-  }
 
-  const file = fs.readdirSync(DOWNLOAD_DIR)
-    .find(f => f.startsWith(id.toString()));
+    const files = fs.readdirSync(DOWNLOAD_DIR);
+    const mp4File = files.find(
+      f => f.startsWith(id.toString()) && f.endsWith(".mp4")
+    );
 
-  if (!file) {
-    return res.status(500).json({ error: "File not found" });
-  }
+    if (!mp4File) {
+      return res.status(500).json({
+        error: "MP4 not created",
+        files
+      });
+    }
 
-  res.download(path.join(DOWNLOAD_DIR, file), () => {
-    fs.unlinkSync(path.join(DOWNLOAD_DIR, file));
+    const filePath = path.join(DOWNLOAD_DIR, mp4File);
+    res.download(filePath, () => fs.unlinkSync(filePath));
   });
 });
 
-});
 
 // ===============================
-const PORT = process.env.PORT || 8080;
+const PORT = 8080;
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port", PORT);
 });

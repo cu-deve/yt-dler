@@ -10,7 +10,6 @@ const hamburger = document.getElementById("hamburger");
 const sidebar = document.getElementById("sidebar");
 const sidebarLinks = document.querySelectorAll(".sidebar-link");
 const urlInput = document.getElementById("urlInput");
-const formatSelect = document.getElementById("formatSelect");
 const downloadBtn = document.querySelector(".download-btn");
 const clearBtn = document.getElementById("clearBtn");
 const pasteBtn = document.getElementById("pasteBtn");
@@ -91,40 +90,29 @@ function isValidYouTubeUrl(url) {
 // DOWNLOAD HANDLER
 // ===============================
 downloadBtn.addEventListener("click", () => {
-  const rawUrl = urlInput.value.trim();
-  const videoUrl = rawUrl.split("?")[0]; // clean URL
-  const format = formatSelect?.value || "mp4";
+  const videoUrl = urlInput.value.trim();
 
-  // ---- validation ----
   if (!videoUrl) {
-    alert("Please enter a YouTube video URL.");
+    alert("Please enter YouTube URL");
     return;
   }
 
   if (!isValidYouTubeUrl(videoUrl)) {
-    alert("Please enter a valid YouTube URL.");
+    alert("Invalid YouTube URL");
     return;
   }
 
-  // ---- UI state ----
   downloadBtn.disabled = true;
   downloadBtn.textContent = "Processing...";
 
   const downloadUrl =
-    `${BACKEND_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${format}`;
+    `${BACKEND_URL}/download?url=${encodeURIComponent(videoUrl)}`;
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  window.location.href = downloadUrl;
 
-  // ---- trigger download ----
-  if (isIOS) {
-    window.open(downloadUrl, "_blank");
-  } else {
-    window.location.href = downloadUrl;
-  }
-
-  // ---- reset button (safe UX) ----
   setTimeout(() => {
     downloadBtn.disabled = false;
     downloadBtn.textContent = "Download";
   }, 2000);
 });
+
